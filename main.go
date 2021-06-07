@@ -25,7 +25,7 @@ type alertList struct {
 
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 3 {
 		fmt.Println("Error: missing parameter")
 		fmt.Println("Usage: prom-alerts-filter <PrometheusInstance> <AlertName>")
 		os.Exit(1)
@@ -39,7 +39,12 @@ func main() {
 	var alerts alertList
 	json.Unmarshal([]byte(jsonResponse), &alerts)
 
-	getFiringAlerts(&alerts, alertName)
+	firingAlerts := getFiringAlerts(&alerts, alertName)
+
+	if firingAlerts == 0 {
+		fmt.Printf("No alerts with name %v found in %v\n", alertName, prometheusInstance)
+	}
+
 }
 
 func getActiveAlerts(prometheusURL string) string {
@@ -60,10 +65,11 @@ func getActiveAlerts(prometheusURL string) string {
 	return string(body)
 }
 
-func getFiringAlerts(alerts *alertList, alertName string) {
+func getFiringAlerts(alerts *alertList, alertName string) int {
 
 	// fmt.Println(alerts.Data["alerts"][0].Labels["alertname"])
 
+	count := 0
 	for k, v := range alerts.Data["alerts"] {
 		// fmt.Printf("key: %v, value: %v,\n", k, v.Labels["alertname"])
 		//fmt.Println(v.Labels["alertname"], alertName)
@@ -73,7 +79,8 @@ func getFiringAlerts(alerts *alertList, alertName string) {
 				log.Fatal(err)
 			}
 			fmt.Println(string(json))
+			count++
 		}
-
 	}
+	return count
 }
