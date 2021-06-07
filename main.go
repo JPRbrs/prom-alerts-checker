@@ -2,13 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"io/ioutil"
 	"net/http"
 	"encoding/json"
 	"strings"
+	"os"
 )
 
-type Alert struct {
+type alert struct {
 	Labels map[string]string
 	Annotations map[string]string
 	State string
@@ -16,19 +18,28 @@ type Alert struct {
 	Value string
 }
 
-type AlertList struct {
+type alertList struct {
 	Status string
-	Data map[string][]Alert
+	Data map[string][]alert
 }
 
 
 func main() {
-	jsonResponse := getActiveAlerts("")
+	if len(os.Args) < 2 {
+		fmt.Println("Error: missing parameter")
+		fmt.Println("Usage: prom-alerts-filter <PrometheusInstance> <AlertName>")
+		os.Exit(1)
+	}
 
-	var alerts AlertList
+	prometheusInstance := os.Args[1]
+	alertName := os.Args[2]
+
+	jsonResponse := getActiveAlerts(prometheusInstance)
+
+	var alerts alertList
 	json.Unmarshal([]byte(jsonResponse), &alerts)
 
-	processAlerts(&alerts)
+	getFiringAlerts(&alerts, alertName)
 }
 
 func getActiveAlerts(prometheusURL string) string {
@@ -49,11 +60,20 @@ func getActiveAlerts(prometheusURL string) string {
 	return string(body)
 }
 
-func processAlerts(alerts *AlertList) {
+func getFiringAlerts(alerts *alertList, alertName string) {
 
 	// fmt.Println(alerts.Data["alerts"][0].Labels["alertname"])
 
 	for k, v := range alerts.Data["alerts"] {
-		fmt.Printf("key: %v, value: %v\n", k, v.Labels["alertname"])
+		// fmt.Printf("key: %v, value: %v,\n", k, v.Labels["alertname"])
+		//fmt.Println(v.Labels["alertname"], alertName)
+		if v.Labels["alertname"] == alertName {
+			json, err := json.MarshalIndent(alerts.Data["alerts"][k], "", "    ")
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println(string(json))
+		}
+
 	}
 }
