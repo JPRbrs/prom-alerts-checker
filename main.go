@@ -25,31 +25,38 @@ type alertList struct {
 
 
 func main() {
-	if len(os.Args) < 3 {
+	if len(os.Args) < 2 {
 		fmt.Println("Error: missing parameter")
 		fmt.Println("Usage: prom-alerts-filter <PrometheusInstance> <AlertName>")
 		os.Exit(1)
 	}
 
-	prometheusInstance := os.Args[1]
-	alertName := os.Args[2]
+	var prometheusInstance = os.Args[1]
+	var alertName = ""
+
+	if len(os.Args) >= 3 {
+		alertName = os.Args[2]
+	}
 
 	jsonResponse := getActiveAlerts(prometheusInstance)
 
 	var alerts alertList
 	json.Unmarshal([]byte(jsonResponse), &alerts)
 
-	firingAlerts := getFiringAlerts(&alerts, alertName)
+	var count int
+	if len(alertName) > 0 {
+		count = getFilteredAlerts(&alerts, alertName)
+	} else {
+		count = getAllFiringAlerts(&alerts)
+	}
 
-	if firingAlerts == 0 {
-		fmt.Printf("No alerts with name %v found in %v\n", alertName, prometheusInstance)
+	if count == 0 {
+		fmt.Printf("No alerts found in %v\n", prometheusInstance )
 	}
 
 }
 
 func getActiveAlerts(prometheusURL string) string {
-	// See first answer here
-	// https://stackoverflow.com/questions/17156371/how-to-get-json-response-from-http-get
 	URL := strings.Replace("https://URL/api/v1/alerts", "URL", prometheusURL, 1)
 	resp, err := http.Get(URL) // TODO: parametrise
 	if err != nil {
@@ -65,14 +72,9 @@ func getActiveAlerts(prometheusURL string) string {
 	return string(body)
 }
 
-func getFiringAlerts(alerts *alertList, alertName string) int {
-
-	// fmt.Println(alerts.Data["alerts"][0].Labels["alertname"])
-
+func getFilteredAlerts(alerts *alertList, alertName string) int {
 	count := 0
 	for k, v := range alerts.Data["alerts"] {
-		// fmt.Printf("key: %v, value: %v,\n", k, v.Labels["alertname"])
-		//fmt.Println(v.Labels["alertname"], alertName)
 		if v.Labels["alertname"] == alertName {
 			json, err := json.MarshalIndent(alerts.Data["alerts"][k], "", "    ")
 			if err != nil {
@@ -81,6 +83,16 @@ func getFiringAlerts(alerts *alertList, alertName string) int {
 			fmt.Println(string(json))
 			count++
 		}
+	}
+
+	return count
+}
+
+func getAllFiringAlerts(alerts *alertList) int {
+	count := 0
+	for k := range alerts.Data["alerts"] {
+		fmt.Println(alerts.Data["alerts"][k].Labels["alertname"])
+		count++
 	}
 	return count
 }
