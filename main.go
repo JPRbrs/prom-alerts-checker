@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"encoding/json"
-	"strings"
 	"os"
 )
 
@@ -25,20 +24,24 @@ type alertList struct {
 
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 3 {
 		fmt.Println("Error: missing parameter")
 		fmt.Println("Usage: prom-alerts-filter <PrometheusInstance> <AlertName>")
 		os.Exit(1)
 	}
 
 	var prometheusInstance = os.Args[1]
+	var team = os.Args[1]
+	var env = os.Args[2]
 	var alertName = ""
 
-	if len(os.Args) >= 3 {
-		alertName = os.Args[2]
+	if len(os.Args) == 4 {
+		alertName = os.Args[3]
 	}
 
-	jsonResponse := getActiveAlerts(prometheusInstance)
+	var prometheusURL = fmt.Sprintf("https://%s-k8s-prometheus.%s.corp-apps.com/api/v1/alerts", team, env)
+
+	jsonResponse := getActiveAlerts(prometheusURL)
 
 	var alerts alertList
 	json.Unmarshal([]byte(jsonResponse), &alerts)
@@ -57,8 +60,7 @@ func main() {
 }
 
 func getActiveAlerts(prometheusURL string) string {
-	URL := strings.Replace("https://URL/api/v1/alerts", "URL", prometheusURL, 1)
-	resp, err := http.Get(URL) // TODO: parametrise
+	resp, err := http.Get(prometheusURL)
 	if err != nil {
 		print(err)
 	}
