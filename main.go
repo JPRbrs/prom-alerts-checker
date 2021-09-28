@@ -52,11 +52,16 @@ func main() {
 	var alerts alertList
 	json.Unmarshal([]byte(jsonResponse), &alerts)
 
-	var count int
+	mapa := make(map[string]int)
+	count := 0
 	if len(alertName) > 0 {
 		count = getFilteredAlerts(&alerts, alertName)
 	} else {
-		count = getAllFiringAlerts(&alerts)
+		count, mapa = getAllFiringAlerts(&alerts, mapa)
+		fmt.Println(fmt.Sprintf("Total number of alerts for %s: %v", prometheusURL, count))
+		for k, v := range mapa {
+			fmt.Println(fmt.Sprintf("Alert name: %s, instances: %v", k, v))
+		}
 	}
 
 	if count == 0 {
@@ -97,11 +102,18 @@ func getFilteredAlerts(alerts *alertList, alertName string) int {
 	return count
 }
 
-func getAllFiringAlerts(alerts *alertList) int {
+func getAllFiringAlerts(alerts *alertList, mapa map[string]int) (int, map[string]int) {
 	count := 0
-	for k := range alerts.Data["alerts"] {
-		fmt.Println(alerts.Data["alerts"][k].Labels["alertname"])
+	for _, v := range alerts.Data["alerts"] {
+		// fmt.Println(alerts.Data["alerts"][k].Labels["alertname"])
+		// fmt.Println(v.Labels["alertname"])
+		_, mapContainsKey := mapa[v.Labels["alertname"]]
+		if mapContainsKey {
+			mapa[v.Labels["alertname"]]++
+		} else {
+			mapa[v.Labels["alertname"]] = 1
+		}
 		count++
 	}
-	return count
+	return count, mapa
 }
