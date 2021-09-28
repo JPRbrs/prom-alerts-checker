@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"io/ioutil"
@@ -26,7 +27,8 @@ type alertList struct {
 func main() {
 	if len(os.Args) < 3 {
 		fmt.Println("Error: missing parameter")
-		fmt.Println("Usage: prom-alerts-filter <PrometheusInstance> <AlertName>")
+		fmt.Println("Usage: ./prom-alerts-filter <channel> <environment>> [AlertName]")
+		fmt.Println("Example ./prom-alerts-filter devops ltitdev")
 		os.Exit(1)
 	}
 
@@ -41,7 +43,11 @@ func main() {
 
 	var prometheusURL = fmt.Sprintf("https://%s-k8s-prometheus.%s.corp-apps.com/api/v1/alerts", team, env)
 
-	jsonResponse := getActiveAlerts(prometheusURL)
+	jsonResponse, err := getActiveAlerts(prometheusURL)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	var alerts alertList
 	json.Unmarshal([]byte(jsonResponse), &alerts)
@@ -59,19 +65,20 @@ func main() {
 
 }
 
-func getActiveAlerts(prometheusURL string) string {
+func getActiveAlerts(prometheusURL string) (string, error) {
 	resp, err := http.Get(prometheusURL)
 	if err != nil {
-		print(err)
+		return "", errors.New(fmt.Sprintf(
+			"Error when calling Prometheus API. \nPlease check URL is correct: %s", prometheusURL))
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		print(err)
+		return "", errors.New("Error reading Prometheus response")
 	}
 
-	return string(body)
+	return string(body), nil
 }
 
 func getFilteredAlerts(alerts *alertList, alertName string) int {
